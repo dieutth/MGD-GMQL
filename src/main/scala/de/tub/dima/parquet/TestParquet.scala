@@ -4,6 +4,7 @@ import com.google.common.hash.Hashing
 import de.tub.dima.MGD_GMQLSparkExecutor
 import de.tub.dima.dimension.Coordinate
 import de.tub.dima.loaders.Loaders
+import de.tub.dima.loaders.writeMultiOutputFiles.RDDMultipleTextOutputFormat
 import it.polimi.genomics.GMQLServer.GmqlServer
 import it.polimi.genomics.core.ParsingType.PARSING_TYPE
 import it.polimi.genomics.core._
@@ -195,7 +196,7 @@ object TestParquet {
 
 
 //    val temp = ref.cogroup(exp)
-    val RefJoinedExp: RDD[((Int, Long, Long, Short),((Array[Long]), Int))] = ref.cogroup(exp)
+    val RefJoinedExp: RDD[((Int, Long, Long, Short),((Array[(Long, Int)])))] = ref.cogroup(exp)
       .flatMap{
         x =>
           val r: Iterable[(Long, Long, Short, Array[Long])] = x._2._1
@@ -234,18 +235,20 @@ object TestParquet {
                   ){
 
                     //                      (key,((refRecord._1, refRecord._2, refRecord._3, ids), 1))
-                    (key,(ids, 1))
+                    val ids_counts = ids zip Array.fill(ids.length)(1)
+                    (key, ids_counts)
                   }
                   else{
                     //                      (key,((refRecord._1, refRecord._2, refRecord._3, Array[Long]()), 0))
-                    (key,(ids, 0))
+                    val ids_counts = ids zip Array.fill(ids.length)(0)
+                    (key, ids_counts)
 
                   }
               }
             }
             else{
               //                Array((key,((refRecord._1, refRecord._2, refRecord._3, Array[Long]()), 0)))
-              Array((key,( Array[Long](), 0)))
+              Array((key,( Array[(Long,Int)]())))
 //              Array()
             }
           }
@@ -256,11 +259,19 @@ object TestParquet {
     val reduced = RefJoinedExp//.distinct()
                     .reduceByKey{
                       (l, r) =>
-                        (((l._1.toSet union  r._1.toSet) toArray), l._2 + r._2)
+                        val res = l ++ r groupBy(_._1) mapValues (_.map(_._2).sum)
+                        res.toArray
                     }
+//                      .map{
+//                        x=>
+//                          (x._1.toString(), x._2.mkString("\t"))
+//                      }
 
-//    reduced.toDF.write.parquet("/home/dieutth/testparquet/parquet")
-    reduced.saveAsTextFile("/home/dieutth/testparquet")
+    reduced.toDF.write.parquet("/home/dieutth/testparquet/parquet")
+//    reduced.saveAsTextFile("/home/dieutth/testparquet2")
+
+//    reduced.saveAsHadoopFile("/home/dieutth/testparquet/new",classOf[String],classOf[String],classOf[RDDMultipleTextOutputFormat])
+
     println ("Execution time when running without custom-partitioner:" + (System.currentTimeMillis() - startTime )/1000)
 
 
