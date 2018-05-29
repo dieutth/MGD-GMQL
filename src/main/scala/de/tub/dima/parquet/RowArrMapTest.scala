@@ -13,7 +13,7 @@ import scala.collection.mutable.ListBuffer
 object RowArrMapTest {
   def main(args: Array[String]): Unit = {
 
-    val conf = new SparkConf().setAppName("Test Parquet")
+    val conf = new SparkConf().setAppName("Row-Arr Map Test")
       .setMaster("local[*]")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer").set("spark.kryoserializer.buffer", "64")
       .set("spark.driver.allowMultipleContexts","true")
@@ -105,23 +105,13 @@ object RowArrMapTest {
               if (e.nonEmpty){
                 e.map{
                   expRecord =>
-                    //                  val ids: Array[Long] = {
-                    //                    val xs = List[Long]()
-                    //                    refRecord._4.flatMap {
-                    //
-                    //                      refId => {
-                    //                        for (expId <- expRecord._4)
-                    //                          Hashing.md5().newHasher().putLong(refId).putLong(expId).hash().asLong :: xs
-                    //                      }
-                    //                        xs
-                    //                    }
-                    //
-                    //                  }
-                    val xs = ListBuffer[Long]()
+//                    val xs = ListBuffer[Long]()
+//                    val refId = refRecord._4
+//                    for (expId <- expRecord._4)
+//                      xs += Hashing.md5().newHasher().putLong(refId).putLong(expId).hash().asLong
+//                    val ids = xs.toArray
                     val refId = refRecord._4
-                    for (expId <- expRecord._4)
-                      xs += Hashing.md5().newHasher().putLong(refId).putLong(expId).hash().asLong
-                    val ids = xs.toArray
+                    val ids = expRecord._4.map(Hashing.md5().newHasher().putLong(refId).putLong(_).hash().asLong)
 
                     if (
                     //region overlap
@@ -158,6 +148,10 @@ object RowArrMapTest {
         (l, r) =>
           val res = l ++ r groupBy(_._1) mapValues (_.map(_._2).sum)
           res.toArray
+      }
+      .map{
+        x=>
+          (x._1.toString(), x._2.mkString("\t"))
       }
     reduced.saveAsTextFile("/home/dieutth/row_arr")
     println ("Execution time when running without custom-partitioner:" + (System.currentTimeMillis() - startTime )/1000)

@@ -118,7 +118,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>main.scala.it.polimi.genomics.dieutth.test</mainClass>
+                            <mainClass>de.tub.dima.parquet.ArrArrLeftJoinTest</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

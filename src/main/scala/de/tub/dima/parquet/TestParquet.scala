@@ -229,7 +229,9 @@ object TestParquet {
                   val ids = xs.toArray
 
                   if (
+                    //region overlap
                     (refRecord._1 < expRecord._2 && expRecord._1 < refRecord._2)
+                      //strand equal or at least one of the strand is non-determine
                       &&  (refRecord._3.equals('*') || expRecord._3.equals('*') || refRecord._3.equals(expRecord._3))
                     && (x._1._2 == refRecord._1/bin || x._1._2 == expRecord._1/bin)
                   ){
@@ -256,19 +258,19 @@ object TestParquet {
           res
       }
 
-    val reduced = RefJoinedExp//.distinct()
+    val reduced = RefJoinedExp
                     .reduceByKey{
                       (l, r) =>
                         val res = l ++ r groupBy(_._1) mapValues (_.map(_._2).sum)
                         res.toArray
                     }
+//      .
 //                      .map{
 //                        x=>
 //                          (x._1.toString(), x._2.mkString("\t"))
 //                      }
 
-    reduced.toDF.write.parquet("/home/dieutth/testparquet/parquet")
-//    reduced.saveAsTextFile("/home/dieutth/testparquet2")
+    reduced.saveAsTextFile("/home/dieutth/testparquet3")
 
 //    reduced.saveAsHadoopFile("/home/dieutth/testparquet/new",classOf[String],classOf[String],classOf[RDDMultipleTextOutputFormat])
 

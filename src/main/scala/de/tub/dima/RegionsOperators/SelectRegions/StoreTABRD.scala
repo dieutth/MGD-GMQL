@@ -27,29 +27,29 @@ object StoreTABRD {
   @throws[SelectFormatException]
   def apply(executor: MGD_GMQLSparkExecutor, path: String, value: RegionOperator, associatedMeta:MetaOperator, schema : List[(String, PARSING_TYPE)], coordinateSystem: GMQLSchemaCoordinateSystem.Value, sc: SparkContext): RDD[GRECORD] = {
     val regions = executor.implement_rd(value, sc)
-    val meta = executor.implement_md(associatedMeta,sc)
+//    val meta = executor.implement_md(associatedMeta,sc)
 
-    val conf = new Configuration();
-    val dfsPath = new org.apache.hadoop.fs.Path(path);
-    val fs = FileSystem.get(dfsPath.toUri(), conf);
-
-    val MetaOutputPath = path + "/meta/"
+//    val conf = new Configuration();
+//    val dfsPath = new org.apache.hadoop.fs.Path(path);
+//    val fs = FileSystem.get(dfsPath.toUri(), conf);
+//
+//    val MetaOutputPath = path + "/meta/"
     val RegionOutputPath = path + "/exp/"
 
-    logger.debug(MetaOutputPath)
-    logger.debug(RegionOutputPath)
-    logger.debug(regions.toDebugString)
-    logger.debug(meta.toDebugString)
-
-
-    val outSample = "S"
-
+//    logger.debug(MetaOutputPath)
+//    logger.debug(RegionOutputPath)
+//    logger.debug(regions.toDebugString)
+//    logger.debug(meta.toDebugString)
+//
+//
+//    val outSample = "S"
+//
 //    val Ids = meta.keys.distinct()
 //    val newIDS: Map[Long, Long] = Ids.zipWithIndex().collectAsMap()
 //    val newIDSbroad = sc.broadcast(newIDS)
-
+//
 //    val regionsPartitioner = new HashPartitioner(Ids.count.toInt)
-
+//
 //    val keyedRDD =
 //      regions.sortBy(s=>s._1).map{x =>
 //        val newStart = if (coordinateSystem == GMQLSchemaCoordinateSystem.OneBased) (x._1._3 + 1) else x._1._3  //start: 0-based -> 1-based
@@ -59,7 +59,7 @@ object StoreTABRD {
 //
 //    keyedRDD.saveAsHadoopFile(RegionOutputPath,classOf[String],classOf[String],classOf[RDDMultipleTextOutputFormat])
 ////    writeMultiOutputFiles.saveAsMultipleTextFiles(keyedRDD, RegionOutputPath)
-
+//
 //    val metaKeyValue = meta.sortBy(x=>(x._1,x._2)).map(x => (outSample+"_"+ "%05d".format(newIDSbroad.value.get(x._1).get) + ".gdm.meta", x._2._1 + "\t" + x._2._2)).partitionBy(regionsPartitioner)
 //
 ////    writeMultiOutputFiles.saveAsMultipleTextFiles(metaKeyValue, MetaOutputPath)
