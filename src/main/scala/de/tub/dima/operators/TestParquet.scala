@@ -45,18 +45,6 @@ object TestParquet {
 
     //original
     val startTime = System.currentTimeMillis()
-//    val parquet = spark.read.parquet("/home/dieutth/data/gmql/parquet/TAD_Aidens_id")
-//    val rdd = parquet
-//              .rdd
-//              .groupBy(x => (x.getString(1), x.getLong(2), x.getLong(3), x.getShort(4).toChar))
-//                .map{
-//                   x => (x._1, x._2.map(
-//                     r => r.getLong(0)
-//                   ))
-//                }
-//
-//    val sampleIDs = parquet.select("id").distinct().collect()
-
     val bin = 10000
     val exp = spark.read.parquet("/home/dieutth/data/gmql/parquet/TAD_Aidens_id")
       .rdd
@@ -265,12 +253,13 @@ object TestParquet {
                         res.toArray
                     }
 //      .
-//                      .map{
-//                        x=>
-//                          (x._1.toString(), x._2.mkString("\t"))
-//                      }
-
-    reduced.saveAsTextFile("/home/dieutth/testparquet3")
+                      .map{
+                        x=>
+                          x._2.map(_._2).sum
+                      }
+      .sum()
+    println(reduced)
+//    reduced.saveAsTextFile("/home/dieutth/testparquet3")
 
 //    reduced.saveAsHadoopFile("/home/dieutth/testparquet/new",classOf[String],classOf[String],classOf[RDDMultipleTextOutputFormat])
 

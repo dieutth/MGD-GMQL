@@ -2,6 +2,7 @@ package de.tub.dima.parquet
 
 import com.google.common.hash.Hashing
 import de.tub.dima.loaders.{BedParser, CustomParser, Loaders}
+import de.tub.dima.parquet.legacy.MapArrArrNC_leftOuterJoin
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistLess, RegionBuilder}
 import it.polimi.genomics.core.GDouble
 import org.apache.spark.sql.functions.{input_file_name, lit}
@@ -68,7 +69,9 @@ object ArrArrLeftJoinTest {
 
       )
 
-    testArrMap(1)
+    testArrMap_3(2)
+//    testArrMap(2)
+//    testArrMap_2(2)
 //    testArrJoin(2)
 //    testArrJoinNoCartesian(2)
     def testArrMap(loop: Int) = {
@@ -84,6 +87,38 @@ object ArrArrLeftJoinTest {
         }
         .saveAsTextFile("/home/dieutth/testparquet/mapNoCartesian/")
       println("Execution time for Map:" + (System.currentTimeMillis() - startTime) / 1000)
+
+    }
+
+    def testArrMap_2(loop: Int) = {
+      var reduced = MapArrArrNC_leftOuterJoin(sc, ref, exp, bin)
+      for (i <- Range(1, loop))
+        reduced = MapArrArrNC_leftOuterJoin(sc, ref, reduced, bin)
+      val r = reduced
+        .flatMap {
+          x =>
+            val k = ("chr"+x._1._1, x._1._2, x._1._3, x._1._4.toChar)
+            for (item <- (x._2._1 zip x._2._2))
+              yield (k, item._1, item._2.mkString(","))
+        }
+        .saveAsTextFile("/home/dieutth/testparquet/mapNoCartesian_2/")
+      println("Map Arr-Arr NoCartesian leftOuterJoin:" + (System.currentTimeMillis() - startTime) / 1000)
+
+    }
+
+    def testArrMap_3(loop: Int) = {
+      var reduced = Map_AA_NC_binInt(sc, ref, exp, bin)
+      for (i <- Range(1, loop))
+        reduced = Map_AA_NC_binInt(sc, ref, reduced, bin)
+      val r = reduced
+        .flatMap {
+          x =>
+            val k = ("chr"+x._1._1, x._1._2, x._1._3, x._1._4.toChar)
+            for (item <- (x._2._1 zip x._2._2))
+              yield (k, item._1, item._2.mkString(","))
+        }
+        .saveAsTextFile("/home/dieutth/testparquet/mapNoCartesian_2/")
+      println("Map Arr-Arr NoCartesian binNumber type Int:" + (System.currentTimeMillis() - startTime) / 1000)
 
     }
 

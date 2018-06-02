@@ -1,4 +1,4 @@
-package de.tub.dima.parquet
+package de.tub.dima.parquet.legacy
 
 import com.google.common.hash.Hashing
 import org.apache.spark.SparkContext
@@ -7,9 +7,10 @@ import org.apache.spark.rdd.RDD
 
 /*
   @author: dieutth
+  Legacy object: using leftOuterJoin is worse than cogroup
  */
 
-object MapArrArrSingleMatrixNoCartesian {
+object MapArrArrNC_leftOuterJoin {
 
   def apply(
              sc: SparkContext,
@@ -46,47 +47,25 @@ object MapArrArrSingleMatrixNoCartesian {
                       allExpIds: Broadcast[Array[Long]]):
   RDD[((Int, Long, Long, Short), (Array[Long], Array[Array[Double]]))] = {
 
-    val RefJoinedExp = ref.cogroup(exp)
-      .flatMap {
-        x =>
-          val r: Iterable[(Long, Long, Short, Array[Long], Array[Array[Double]])] = x._2._1
-          val e: Iterable[(Long, Long, Short, Array[Long], Array[Array[Double]])] = x._2._2
-          val res =
-            r.flatMap { refRecord =>
-              val key = (x._1._1, refRecord._1, refRecord._2, refRecord._3)
-              if (e.isEmpty) {
-                //                None
-                val ids = (refRecord._4, Array[Long]())
-                Some((key, (ids, refRecord._5, Array[Int]())))
-              }
-              else {
-                e.flatMap {
-                  expRecord =>
+    val RefJoinedExp = ref.leftOuterJoin(exp)
+            .flatMap{
+              x =>
+                val refRecord = x._2._1
+                val expRecord = x._2._2
+                val key = (x._1._1, refRecord._1, refRecord._2, refRecord._3)
+                expRecord match {
+                  case Some(expRecord) => {
+                    val ids = (refRecord._4, expRecord._4)
+                    Some((key, (ids, refRecord._5, Array.fill(expRecord._4.length)(1))))
+                  }
 
-                    if (
-                    //region intersect
-                      (refRecord._1 < expRecord._2 && expRecord._1 < refRecord._2)
-                        //strand equal or at least one of the strand is non-determine
-                        && (refRecord._3.equals('*') || expRecord._3.equals('*') || refRecord._3.equals(expRecord._3))
-                        //produce result only when bin contains the start of either REF region or EXP region
-                        && (x._1._2 == refRecord._1 / bin || x._1._2 == expRecord._1 / bin)
-                    ) {
-                      //                      val ids = (refRecord._4, Some(expRecord._4))
-                      val ids = (refRecord._4, expRecord._4)
-                      //                    Some((key, (ids, refRecord._5, Array[Int]())))
-                      Some((key, (ids, refRecord._5, Array.fill(expRecord._4.length)(1))))
-                    }
-                    else {
-                      //                      val ids = (refRecord._4, None)
-                      val ids = (refRecord._4, Array[Long]())
-                      Some((key, (ids, refRecord._5, Array[Int]())))
-                    }
+                  case None => {
+                    val ids = (refRecord._4, Array[Long]())
+                    Some((key, (ids, refRecord._5, Array[Int]())))
+                  }
                 }
-              }
-            }
 
-          res
-      }
+            }
 
     val reduced = RefJoinedExp
       .reduceByKey{

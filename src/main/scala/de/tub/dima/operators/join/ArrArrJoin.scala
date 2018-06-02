@@ -3,11 +3,7 @@ package de.tub.dima.parquet
 import com.google.common.hash.Hashing
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.RegionBuilder
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistGreater, DistLess, RegionBuilder}
-import it.polimi.genomics.core.DataTypes.GRECORD
-import it.polimi.genomics.core.GRecordKey
 import org.apache.spark.rdd.RDD
-
-import scala.collection.mutable.ListBuffer
 
 object ArrArrJoin {
 
@@ -152,12 +148,6 @@ object ArrArrJoin {
                       case RegionBuilder.CONTIG => (x._1._1, refRecord._1.min(expRecord._1), refRecord._2.max(expRecord._2), refRecord._3)
                     }
 
-                    //TODO: change 2 for to for-comprehension for more concise, FP code
-//                    val xs = ListBuffer[Long]()
-//                    for (refId <- refRecord._4)
-//                      for (expId <- expRecord._4)
-//                        xs += Hashing.md5().newHasher().putLong(refId).putLong(expId).hash().asLong
-//                    val ids = xs.toArray
                     val ids: Array[Long] =
                     for (refId <- refRecord._4;
                          expId <- expRecord._4)
