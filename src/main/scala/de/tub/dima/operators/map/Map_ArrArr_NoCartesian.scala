@@ -9,7 +9,7 @@ import org.apache.spark.rdd.RDD
   @author: dieutth
  */
 
-object MapArrArrSingleMatrixNoCartesian {
+object Map_ArrArr_NoCartesian {
 
   def apply(
              sc: SparkContext,
