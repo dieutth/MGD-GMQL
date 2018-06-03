@@ -44,6 +44,19 @@
             <version>15.0</version>
         </dependency>
 
+
+        <dependency>
+            <groupId>org.scalactic</groupId>
+            <artifactId>scalactic_2.12</artifactId>
+            <version>3.2.0-SNAP4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.12</artifactId>
+            <version>3.2.0-SNAP4</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
 

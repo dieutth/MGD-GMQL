@@ -1,153 +1,172 @@
 package de.tub.dima
 
+import com.google.common.hash.Hashing
 import de.tub.dima.loaders.{CustomParser, Loaders}
 import de.tub.dima.operators.join.{ArrArrJoin, ArrArrJoin_NoCartesian}
 import de.tub.dima.operators.legacy.{MapArrArrNC_leftOuterJoin, Map_AA_NC_binInt}
 import de.tub.dima.operators.map.Map_ArrArr_NoCartesian
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistLess, RegionBuilder}
-import it.polimi.genomics.core.GDouble
-import org.apache.spark.SparkConf
+import it.polimi.genomics.core.DataTypes.GRECORD
+import it.polimi.genomics.core.{GDouble, GRecordKey, GValue}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterEach, FunSuite}
 
-object TestMapCorrectness {
-  def main(args: Array[String]): Unit = {
 
-  val conf = new SparkConf().setAppName("Test Parquet")
-    .setMaster("local[*]")
-    .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer").set("spark.kryoserializer.buffer", "64")
-    .set("spark.driver.allowMultipleContexts","true")
-    .set("spark.sql.tungsten.enabled", "true")
-    .set("spark.executor.heartbeatInterval","300s")
-    .set("spark.eventLog.enabled", "true")
-    .set("spark.eventLog.dir","/tmp/spark-events")
-    .set("spark.default.parallelism", "2")
+/**
+  * @author dieutth, 03/06/2018
+  * @see documentation at [[http://www.bioinformatics.deib.polimi.it/geco/?try]] for more information
+  *      about Map operator semantic.
+  * 
+  * Tests for the correctness of GMQL Map operation in different scenarios.
+  * The default aggregation function is Count.
+  *         
+  */
+class TestMapCorrectness extends FunSuite with BeforeAndAfter{
 
-  val spark =  SparkSession.builder().config(conf).getOrCreate()
-  val sc = spark.sparkContext
-
+  val configInfo: Map[String, String] = Map(
+      ("spark.serializer", "org.apache.spark.serializer.KryoSerializer"),
+      ("spark.kryoserializer.buffer", "64"),
+      ("spark.driver.allowMultipleContexts","true"),
+      ("spark.sql.tungsten.enabled", "true"),
+      ("spark.executor.heartbeatInterval","300s"),
+      ("spark.eventLog.enabled", "true"),
+      ("spark.eventLog.dir","/tmp/spark-events"),
+      ("spark.default.parallelism", "2")
+  )
+  var spark: SparkSession = _
+  var sc: SparkContext = _
+  val hasher = Hashing.md5().newHasher()
   val bin = 10000
-  val gDist = DistLess(70000)
+  
+  before{
+    val conf = new SparkConf().setAppName("Test Map operations correctness")
+      .setMaster("local[*]")
+    for ((key, value) <- configInfo)
+      conf.set(key, value)
+    spark =  SparkSession.builder().config(conf).getOrCreate()
+    sc = spark.sparkContext
 
-  val (ds1Path, ds2Path, loop) = if (args.length == 3) (args(0), args(1), args(2))
-  //    else ("/home/dieutth/data/gmql/parquet/TAD_Aidens_id", "/home/dieutth/data/gmql/parquet/TAD_Aidens_id", "3")
-  //    else ("/home/dieutth/data/gmql/uncompressed/TADs_Aiden/", "/home/dieutth/data/gmql/uncompressed/TADs_Aiden/", "3")
-  else ("/home/dieutth/data/gmql/uncompressed/TADs_Aiden_working_medium/", "/home/dieutth/data/gmql/uncompressed/TADs_Aiden_working_medium/", "3")
-  //    else ("/home/dieutth/data/gmql/uncompressed/tmp/ref/", "/home/dieutth/data/gmql/uncompressed/tmp/exp/", "3")
+  }
+  
+  after{
+    if (sc != null)
+        sc.stop
+  }
+
+  /**
+    * ref: S0: (chr1	1	7	*	0.2	0.3)(chr1	1	3	*	0.2	0.7)
+    *       S1: (chr1	1	3	*	0.7	0.2)(chr1	2	4	*	0.2	0.2)
+    * exp: S0: (chr1	2	5	*	0.2	0.3)
+    *       S1: (chr1	1	3	*	0.7	0.2)(chr1	2	4	*	0.2	0.2)
+    */
+  test("Arr-Arr: No region-duplication in each sample in both dataset"){
+    val refFilePath = "./resources/no_region_duplicate_in_both/ref/"
+    val expFilePath = "./resources/no_region_duplicate_in_both/exp/"
+    val ref = loadDataset(refFilePath).transformToSingleMatrix()
+    val exp = loadDataset(expFilePath).transformToSingleMatrix()
+
+//    val actualResult: Array[Rep] = Map_ArrArr_NoCartesian(sc, ref, exp, bin).transformToRow().collect()
+//                                        .map()
 
 
-  val startTime = System.currentTimeMillis()
-  val ref = Loaders.forPath(sc, ds1Path).LoadRegionsCombineFiles(new CustomParser().setSchema(ds1Path).region_parser)
-    .groupBy{
-      x =>
-        val y = x._1.chrom.substring(3)
-        val chr: Int = try {
-          y.toInt
-        } catch {
-          case e: Exception => if (y == "X") 23 else 24
-        }
-        (chr, x._1.start, x._1.stop, x._1.strand.toShort)
-    }
-    .map(x=>
-      (x._1, x._2.map(y => (y._1.id, y._2.flatMap(_ match {case GDouble(t)=> Some(t)
-      case _=> None}))).toArray.unzip)
-
+    val List(s00, s01, s10, s11) = generateId(refFilePath, expFilePath)
+    val expectedResult = Array(
+      (GRecordKey(s00, "chr1", 1, 7, '*'), Array[GValue](GDouble(0.2), GDouble(0.3)))
     )
 
-  val exp = Loaders.forPath(sc, ds2Path).LoadRegionsCombineFiles(new CustomParser().setSchema(ds2Path).region_parser)
-    .groupBy{
-      x =>
-        val y = x._1.chrom.substring(3)
-        val chr: Int = try {
-          y.toInt
-        } catch {
-          case e: Exception => if (y == "X") 23 else 24
-        }
-        (chr, x._1.start, x._1.stop, x._1.strand.toShort)
+  }
+
+
+
+  private def loadDataset(path: String): RDD[GRECORD] = {
+    Loaders.forPath(sc, path).LoadRegionsCombineFiles(new CustomParser().setSchema(path).region_parser)
+  }
+
+  private def generateId(refPath: String, expPath: String): List[Long]={
+    val refIds = for (f1 <- Array("S_00000.gdm", "S_00001"))
+                    yield hasher.putString((refPath+f1).replaceAll("/",""),java.nio.charset.StandardCharsets.UTF_8).hash().asLong()
+
+    val expIds = for (f1 <- Array("S_00000.gdm", "S_00001"))
+                      yield hasher.putString((expPath+f1).replaceAll("/",""),java.nio.charset.StandardCharsets.UTF_8).hash().asLong()
+
+    val ids = for(refId <- refIds; expId <- expIds)
+      yield hasher.putLong(refId).putLong(expId).hash().asLong
+    ids.toList
+
+  }
+
+  implicit class TransformFromRow(ds: RDD[GRECORD]){
+    def transformToSingleMatrix(): RDD[((Int, Long, Long, Short), (Array[Long],Array[Array[Double]]))] ={
+      ds.groupBy{
+        x =>
+          val y = x._1.chrom.substring(3)
+          val chr: Int = try {
+            y.toInt
+          } catch {
+            case e: Exception => if (y == "X") 23 else 24
+          }
+          (chr, x._1.start, x._1.stop, x._1.strand.toShort)
+      }
+        .map(x=>
+          (x._1, x._2.map(y => (y._1.id, y._2.flatMap(_ match {case GDouble(t)=> Some(t)
+          case _=> None}))).toArray.unzip)
+
+        )
     }
-    .map(x=>
-      (x._1, x._2.map(y => (y._1.id, y._2.flatMap(_ match {case GDouble(t)=> Some(t)
-      case _=> None}))).toArray.unzip)
 
-    )
-
-  testArrMap_3(2)
-  //    testArrMap(2)
-  //    testArrMap_2(2)
-  //    testArrJoin(2)
-  //    testArrJoinNoCartesian(2)
-  def testArrMap(loop: Int) = {
-    var reduced = Map_ArrArr_NoCartesian(sc, ref, exp, bin)
-    for (i <- Range(1, loop))
-      reduced = Map_ArrArr_NoCartesian(sc, ref, reduced, bin)
-    val r = reduced
-      .flatMap {
+    def transformToMultiMatrix() = {
+      ds.groupBy{
         x =>
-          val k = ("chr"+x._1._1, x._1._2, x._1._3, x._1._4.toChar)
-          for (item <- (x._2._1 zip x._2._2))
-            yield (k, item._1, item._2.mkString(","))
+          val y = x._1.chrom.substring(3)
+          val chr: Int = try {
+            y.toInt
+          } catch {
+            case e: Exception => if (y == "X") 23 else 24
+          }
+          (chr, x._1.start, x._1.stop, x._1.strand.toShort)
       }
-      .saveAsTextFile("/home/dieutth/testparquet/mapNoCartesian/")
-    println("Execution time for Map:" + (System.currentTimeMillis() - startTime) / 1000)
+        .map { x =>
+          val (ids, features) = x._2.map(y => (y._1.id, y._2.flatMap(_ match
+          { case GDouble(t) => Some(t)
+            case _ => None
+          }))).toArray.unzip
 
+          (x._1, (Array(ids), Array(features)))
+
+        }
+    }
   }
 
-  def testArrMap_2(loop: Int) = {
-    var reduced = MapArrArrNC_leftOuterJoin(sc, ref, exp, bin)
-    for (i <- Range(1, loop))
-      reduced = MapArrArrNC_leftOuterJoin(sc, ref, reduced, bin)
-    val r = reduced
-      .flatMap {
+  implicit class TransformFromSingleMatrix(ds: RDD[((Int, Long, Long, Short), (Array[Long],Array[Array[Double]]))]) {
+    def transformToRow(): RDD[GRECORD]= {
+      ds.flatMap {
         x =>
-          val k = ("chr"+x._1._1, x._1._2, x._1._3, x._1._4.toChar)
+          val k = x._1
           for (item <- (x._2._1 zip x._2._2))
-            yield (k, item._1, item._2.mkString(","))
+            yield (GRecordKey(item._1, "chr" + x._1, x._1._2, x._1._3, x._1._4.toChar), item._2.map(GDouble(_).asInstanceOf[GValue]))
       }
-      .saveAsTextFile("/home/dieutth/testparquet/mapNoCartesian_2/")
-    println("Map Arr-Arr NoCartesian leftOuterJoin:" + (System.currentTimeMillis() - startTime) / 1000)
 
+    }
   }
-
-  def testArrMap_3(loop: Int) = {
-    var reduced = Map_AA_NC_binInt(sc, ref, exp, bin)
-    for (i <- Range(1, loop))
-      reduced = Map_AA_NC_binInt(sc, ref, reduced, bin)
-    val r = reduced
-      .flatMap {
+  implicit class TransformFromMultiMatrixToRow(ds: RDD[((Int, Long, Long, Short), (Array[Array[Long]],Array[Array[Array[Double]]]))]) {
+    def transformToRow (): RDD[GRECORD]= {
+      ds.flatMap {
         x =>
-          val k = ("chr"+x._1._1, x._1._2, x._1._3, x._1._4.toChar)
-          for (item <- (x._2._1 zip x._2._2))
-            yield (k, item._1, item._2.mkString(","))
+          val key = x._1
+          val ids = x._2._1.slice(1, x._2._1.size).foldLeft(x._2._1.head)((l, r) => for (il <- l; ir <- r) yield Hashing.md5().newHasher().putLong(il).putLong(ir).hash().asLong)
+          val features = x._2._2.slice(1, x._2._2.size).foldLeft(x._2._2.head)((l, r) => for (il <- l; ir <- r) yield il ++ ir)
+          for (i <- 0 until ids.length)
+            yield (GRecordKey(ids(i), "chr" + x._1, x._1._2, x._1._3, x._1._4.toChar), features(i).map(GDouble(_).asInstanceOf[GValue]))
       }
-      .saveAsTextFile("/home/dieutth/testparquet/mapNoCartesian_2/")
-    println("Map Arr-Arr NoCartesian binNumber type Int:" + (System.currentTimeMillis() - startTime) / 1000)
-
-  }
-
-  def testArrJoin(loop: Int) = {
-    var reduced = ArrArrJoin(ref, exp, bin, RegionBuilder.LEFT, Some(gDist), None)
-    for (i <- Range(1, loop))
-    //        reduced = ArrArrJoin(ref, reduced, bin, RegionBuilder.LEFT, Some(gDist), None)
-      reduced = ArrArrJoin(reduced, ref, bin, RegionBuilder.LEFT, Some(gDist), None)
-    reduced
-      //        .flatMap {
-      //          x =>
-      //            val k = x._1
-      //            for (item <- (x._2._1 zip x._2._2))
-      //              yield (k, item._1, item._2.mkString(","))
-      //        }
-      .saveAsTextFile("/home/dieutth/testparquet/joinNormal/")
-    println("Execution time for normal join :" + (System.currentTimeMillis() - startTime) / 1000)
-  }
-
-  def testArrJoinNoCartesian(loop: Int) = {
-    var reduced = ArrArrJoin_NoCartesian(ref, exp, bin, RegionBuilder.LEFT, Some(gDist), None)
-    for (i <- Range(1, loop))
-    //            reduced = ArrArrJoin_NoCartesian(ref, reduced, bin, RegionBuilder.LEFT, Some(gDist), None)
-      reduced = ArrArrJoin_NoCartesian(reduced, ref, bin, RegionBuilder.LEFT, Some(gDist), None)
-    reduced
-      .saveAsTextFile("/home/dieutth/testparquet/joinNoCartesian/")
-    println("Execution time when running on Join No cartesian:" + (System.currentTimeMillis() - startTime) / 1000)
+    }
   }
 }
 
-}
+case class Rep()
+
+
+
+
+
