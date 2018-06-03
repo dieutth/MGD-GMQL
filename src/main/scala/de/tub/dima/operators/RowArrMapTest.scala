@@ -1,4 +1,4 @@
-package de.tub.dima.parquet
+package de.tub.dima.operators
 
 import com.google.common.hash.Hashing
 import de.tub.dima.MGD_GMQLSparkExecutor

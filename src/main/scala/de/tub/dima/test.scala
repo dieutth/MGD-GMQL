@@ -26,8 +26,9 @@ object test {
     val (dsFilePath1, dsFilePath2, loop) = if (args.length == 3) (args(0), args(1), args(2))
     //    else ("/home/dieutth/data/gmql/parquet/TAD_Aidens_id", "/home/dieutth/data/gmql/parquet/TAD_Aidens_id", "3")
     //    else ("/home/dieutth/data/gmql/uncompressed/TADs_Aiden/", "/home/dieutth/data/gmql/uncompressed/TADs_Aiden/", "3")
-        else ("/home/dieutth/data/gmql/uncompressed/TADs_Aiden_working_medium/", "/home/dieutth/data/gmql/uncompressed/TADs_Aiden_working_medium/", "3")
-//    else ("/home/dieutth/data/gmql/uncompressed/tmp/ref/", "/home/dieutth/data/gmql/uncompressed/tmp/exp/", "3")
+//        else ("/home/dieutth/data/gmql/uncompressed/TADs_Aiden_working_medium/", "/home/dieutth/data/gmql/uncompressed/TADs_Aiden_working_medium/", "3")
+    else ("/home/dieutth/data/gmql/uncompressed/tmp/ref/", "/home/dieutth/data/gmql/uncompressed/tmp/exp/", "3")
+//    else ("/home/dieutth/data/gmql/uncompressed/tmp_dupIn1Sample/", "/home/dieutth/data/gmql/uncompressed/tmp_dupIn1Sample/", "3")
 
     testMap(0)
     def testMap(loop: Int): Unit = {

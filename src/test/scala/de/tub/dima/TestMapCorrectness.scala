@@ -9,7 +9,7 @@ import it.polimi.genomics.core.GDouble
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-object testMap {
+object TestMapCorrectness {
   def main(args: Array[String]): Unit = {
 
   val conf = new SparkConf().setAppName("Test Parquet")

@@ -1,4 +1,4 @@
-package de.tub.dima.parquet
+package de.tub.dima.operators.join
 
 import com.google.common.hash.Hashing
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.RegionBuilder

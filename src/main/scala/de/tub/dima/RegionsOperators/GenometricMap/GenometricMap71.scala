@@ -33,16 +33,16 @@ object GenometricMap71 {
     val exp: RDD[(GRecordKey, Array[GValue])] =
       executor.implement_rd(experiments, sc)
 
-    val binningParameter = 10000
-    //      if (BINNING_PARAMETER == 0)
-    //        Long.MaxValue
-    //      else
-    //        BINNING_PARAMETER
+    val binningParameter =
+      if (BINNING_PARAMETER == 0)
+        Long.MaxValue
+      else
+        BINNING_PARAMETER
 
     execute(executor, grouping, aggregator, ref, exp, binningParameter, REF_PARALLILISM, sc)
   }
 
-  case class MapKey(/*sampleId: Long, */ newId: Long, refChr: Int, refStart: Long, refStop: Long, refStrand: Char, refValues: List[GValue]) {
+  case class MapKey(/*sampleId: Long, */ newId: Long, refChr: String, refStart: Long, refStop: Long, refStrand: Char, refValues: List[GValue]) {
 
     override def equals(obj: scala.Any): Boolean = {
       if (## == obj.##) {
@@ -75,10 +75,7 @@ object GenometricMap71 {
     implicit val orderGRECORD: Ordering[(GRecordKey, Array[GValue])] = Ordering.by { ar: GRECORD => ar._1 }
 
     val expBinned = exp.binDS(BINNING_PARAMETER, aggregator)
-    val refBinnedRep = ref
-      //      .repartition(sc.defaultParallelism * 32 - 1)
-      .repartition(32)
-      .binDS(BINNING_PARAMETER, refGroups)
+    val refBinnedRep = ref.repartition(sc.defaultParallelism * 32 - 1).binDS(BINNING_PARAMETER, refGroups)
 
     val emptyArrayGValue = Array.empty[GValue]
     val emptyArrayInt = Array.empty[Int]
@@ -105,7 +102,7 @@ object GenometricMap71 {
       refBinnedRep
         .cogroup(expBinned)
         .flatMap {
-          case (key: (Long, Int, Int), (ref: Iterable[(Long, Long, Long, Char, Array[GValue])], exp: Iterable[(Long, Long, Char, Array[GValue])])) =>
+          case (key: (Long, String, Int), (ref: Iterable[(Long, Long, Long, Char, Array[GValue])], exp: Iterable[(Long, Long, Char, Array[GValue])])) =>
             // key: (Long, String, Int) sampleId, chr, bin
             // ref: Iterable[(Long, Long, Long, Char, Array[GValue])] newSampleId, start, stop, strand, others
             // exp: Iterable[(Long, Long, Char, Array[GValue])] start, stop, strand, others
@@ -157,7 +154,7 @@ object GenometricMap71 {
 
       val newID = mapKey.newId //Hashing.md5().newHasher().putLong(mapKey.refId).putLong(mapKey.sampleId).hash().asLong
 
-      val gRecordKey = new GRecordKey(newID, "chr"+mapKey.refChr, mapKey.refStart, mapKey.refStop, mapKey.refStrand)
+      val gRecordKey = GRecordKey(newID, mapKey.refChr, mapKey.refStart, mapKey.refStop, mapKey.refStrand)
 
       //default size is 16
       val buffer = new ArrayBuffer[GValue]
@@ -173,50 +170,36 @@ object GenometricMap71 {
   }
 
   implicit class Binning(rdd: RDD[GRECORD]) {
-
-    def binDS(bin: Long, aggregator: List[RegionAggregate.RegionsToRegion]): RDD[((Long, Int, Int), (Long, Long, Char, Array[GValue]))] =
+    def binDS(bin: Long, aggregator: List[RegionAggregate.RegionsToRegion]): RDD[((Long, String, Int), (Long, Long, Char, Array[GValue]))] =
       rdd.flatMap { x =>
-
         //        if (bin > 0) {
         val startBin = (x._1._3 / bin).toInt
         val stopBin = (x._1._4 / bin).toInt
-        val chr = {
-          val c =  x._1.chrom.substring(3)
-          if (c == "X")
-            23
-          else
-            c.toInt
-        }
 
         val newVal: Array[GValue] = aggregator
           .map((f: RegionAggregate.RegionsToRegion) => {
             x._2(f.index)
           }).toArray
 
-        (startBin to stopBin).map(i => ((x._1._1, chr, i), (x._1._3, x._1._4, x._1._5, newVal)))
+        (startBin to stopBin).map(i => ((x._1._1, x._1._2, i), (x._1._3, x._1._4, x._1._5, newVal)))
       }
 
-    def binDS(bin: Long, Bgroups: Broadcast[collection.Map[Long, Iterable[Long]]]): RDD[((Long, Int, Int), (Long, Long, Long, Char, Array[GValue]))] =
+    def binDS(bin: Long, Bgroups: Broadcast[collection.Map[Long, Iterable[Long]]]): RDD[((Long, String, Int), (Long, Long, Long, Char, Array[GValue]))] =
       rdd.flatMap { x =>
         val startBin = (x._1._3 / bin).toInt
         val stopBin = (x._1._4 / bin).toInt
-        val chr ={
-          val c =  x._1.chrom.substring(3)
-          if (c == "X")
-            23
-          else
-            c.toInt
-        }
+
 
         Bgroups.value.getOrElse(x._1._1, Iterable[Long]()).flatMap { exp_id =>
           val newID = Hashing.md5().newHasher().putLong(x._1._1).putLong(exp_id).hash().asLong
 
           (startBin to stopBin).map { i =>
-            ((exp_id, chr , i), (newID, x._1._3, x._1._4, x._1._5, x._2))
+            ((exp_id, x._1._2, i), (newID, x._1._3, x._1._4, x._1._5, x._2))
           }
         }
 
       }
+
 
   }
 

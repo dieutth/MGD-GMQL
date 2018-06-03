@@ -221,7 +221,9 @@ object Loaders {
       val uri = split.getPath(index).getName
       val uriExt =uri.substring(uri.lastIndexOf(".")+1,uri.size)
       val URLNoMeta = if(!uriExt.equals("meta"))uri.substring(0,uri.size ) else  uri.substring(0,uri.lastIndexOf("."))
+//      println("Generate Key")
       Hashing.md5().newHasher().putString(URLNoMeta.replaceAll("/",""),java.nio.charset.StandardCharsets.UTF_8).hash().asLong()
+
     }
   }
 

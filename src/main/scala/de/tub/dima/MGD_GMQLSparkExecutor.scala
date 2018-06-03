@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory
 object MGD_GMQLSparkExecutor{
   type GMQL_DATASET = (Array[(GRecordKey, Array[GValue])], Array[(Long, (String, String))], List[(String, PARSING_TYPE)])
 }
-class MGD_GMQLSparkExecutor(val binSize : BinSize = BinSize(), val maxBinDistance : Int = 100000, REF_PARALLILISM: Int = 20,
+class MGD_GMQLSparkExecutor(val binSize : BinSize = BinSize(), val maxBinDistance : Int = 100000, REF_PARALLILISM: Int = 2,
                             sc:SparkContext,
                             outputFormat:GMQLSchemaFormat.Value = GMQLSchemaFormat.TAB,
                             outputCoordinateSystem: GMQLSchemaCoordinateSystem.Value = GMQLSchemaCoordinateSystem.Default,
@@ -51,7 +51,7 @@ class MGD_GMQLSparkExecutor(val binSize : BinSize = BinSize(), val maxBinDistanc
   var fs:FileSystem = null
 
   def go(): Unit = {
-    logger.info(to_be_materialized.toString())
+//    logger.info(to_be_materialized.toString())
     implementation()
   }
 

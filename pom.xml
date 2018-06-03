@@ -118,7 +118,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>de.tub.dima.parquet.ArrArrLeftJoinTest</mainClass>
+                            <mainClass>de.tub.dima.operators.ArrArrLeftJoinTest</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

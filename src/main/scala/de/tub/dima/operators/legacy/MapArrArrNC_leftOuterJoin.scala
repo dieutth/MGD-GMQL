@@ -1,4 +1,4 @@
-package de.tub.dima.parquet.legacy
+package de.tub.dima.operators.legacy
 
 import com.google.common.hash.Hashing
 import org.apache.spark.SparkContext
