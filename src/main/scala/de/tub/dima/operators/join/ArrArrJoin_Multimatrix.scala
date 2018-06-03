@@ -1,4 +1,4 @@
-package de.tub.dima.parquet
+package de.tub.dima.operators.join
 
 import com.google.common.hash.Hashing
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.RegionBuilder
@@ -64,7 +64,7 @@ object ArrArrJoin_Multimatrix {
   }
 
   def apply(ref: RDD[((Int, Long, Long, Short), (Array[Array[Long]],Array[Array[Array[Double]]]))],
-            exp: RDD[((Int, Long, Long, Short), (Array[Array[Long]],Array[Array[Array[Double]]]))],
+            exp: RDD[((Int, Long, Long, Short), (Array[Long],Array[Array[Double]]))],
             bin: Int,
             joinType: RegionBuilder,
             less: Option[DistLess],
@@ -116,7 +116,7 @@ object ArrArrJoin_Multimatrix {
   }
 
   private def execute(ref: RDD[((Int,Long),(Long,Long,Short,Array[Array[Long]],Array[Array[Array[Double]]]))],
-                      exp: RDD[((Int,Long),(Long,Long,Short,Array[Array[Long]],Array[Array[Array[Double]]]))],
+                      exp: RDD[((Int,Long),(Long,Long,Short,Array[Long],Array[Array[Double]]))],
                       binSize: Int,
                       joinType: RegionBuilder,
                       less: DistLess,
@@ -128,7 +128,7 @@ object ArrArrJoin_Multimatrix {
       .flatMap{
         x =>
           val r: Iterable[(Long, Long, Short, Array[Array[Long]], Array[Array[Array[Double]]])] = x._2._1
-          val e: Iterable[(Long, Long, Short, Array[Array[Long]], Array[Array[Array[Double]]])] = x._2._2
+          val e: Iterable[(Long, Long, Short, Array[Long], Array[Array[Double]])] = x._2._2
           val res =
             r.flatMap{refRecord =>
               e.flatMap{
@@ -153,18 +153,11 @@ object ArrArrJoin_Multimatrix {
                       case RegionBuilder.CONTIG => (x._1._1, refRecord._1.min(expRecord._1), refRecord._2.max(expRecord._2), refRecord._3)
                     }
 
-//                    val (idCompressed, featureCompressed) = if (refRecord._4.size > 1 && expRecord._4.size > 1){
-//
-//                    }else{
-//                      (None, None)
-//                    }
+                    val ids = refRecord._4 :+ expRecord._4
+                    val features = refRecord._5 :+ expRecord._5
 
-
-//                    val ids = refRecord._4 ++ expRecord._4
-//                    val features = refRecord._5 ++ expRecord._5
-
-                    val ids = (refRecord._4, Array(expRecord._4))
-                    val features = (refRecord._5, Array(expRecord._5))
+//                    val ids = (refRecord._4, expRecord._4)
+//                    val features = (refRecord._5, expRecord._5)
 
                     Some((key, (ids, features)))
 
@@ -181,7 +174,21 @@ object ArrArrJoin_Multimatrix {
     val reduced = RefJoinedExp
       .reduceByKey {
         (l, r) =>
-            ((l._1._1, l._1._2 ++ r._1._2), (l._2._1, l._2._2 ++ r._2._2))
+          val lr_ids_lastElement = l._1.last ++ r._1.last
+          l._1(l._1.size-1) = lr_ids_lastElement
+          val lr_features_lastElement = l._2.last ++ r._2.last
+          l._2(l._2.size-1) = lr_features_lastElement
+
+          if (l._1.head.size == 1){
+            val headId = l._1.head.head
+            val second = for (id <- l._1(1))
+              yield Hashing.md5().newHasher().putLong(headId).putLong(id).hash().asLong
+            l._1(1) = second
+            (l._1.slice(1, l._1.size), l._2)
+          }else (l._1, l._2)
+
+
+
       }
 //      .mapValues {
 //        x =>
@@ -194,8 +201,8 @@ object ArrArrJoin_Multimatrix {
 //            yield refFeature ++ expFeature
 //          (ids, features)
 //      }
-//    reduced
-    null
+    reduced
+//    null
 
   }
 }
