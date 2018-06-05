@@ -39,8 +39,24 @@ class TestBase extends FunSuite with BeforeAndAfter{
     val ids = for(refId <- refIds; expId <- expIds)
       yield Hashing.md5().newHasher().putLong(refId).putLong(expId).hash().asLong
     ids.toList
-
   }
+
+  val refFilePath_NoRegionDup= "/home/dieutth/git/MGD-GMQL/src/test/resources/no_region_duplicate_in_both/ref/"
+  val expFilePath_NoRegionDup =  "/home/dieutth/git/MGD-GMQL/src/test/resources/no_region_duplicate_in_both/exp/"
+
+  val refFilePath_RegionDupInREF = "/home/dieutth/git/MGD-GMQL/src/test/resources/region_dup_in_ref_only/ref/"
+  val expFilePath_RegionDupInREF = "/home/dieutth/git/MGD-GMQL/src/test/resources/region_dup_in_ref_only/exp/"
+
+  val refFilePath_RegionDupInEXP = "/home/dieutth/git/MGD-GMQL/src/test/resources/region_dup_in_exp_only/ref/"
+  val expFilePath_RegionDupInEXP = "/home/dieutth/git/MGD-GMQL/src/test/resources/region_dup_in_exp_only/exp/"
+
+  val refFilePath_RegionDupInBOTH = "/home/dieutth/git/MGD-GMQL/src/test/resources/region_dup_in_both/ref/"
+  val expFilePath_RegionDupInBOTH = "/home/dieutth/git/MGD-GMQL/src/test/resources/region_dup_in_both/exp/"
+
+  val refFilePath_RecordDupInREF = "/home/dieutth/git/MGD-GMQL/src/test/resources/record_dup_in_ref_only/ref/"
+  val expFilePath_RecordDupInREF = "/home/dieutth/git/MGD-GMQL/src/test/resources/record_dup_in_ref_only/exp/"
+
+
   before{
     val conf = new SparkConf().setAppName("Test Map operations correctness")
       .setMaster("local[*]")
@@ -114,6 +130,7 @@ class TestBase extends FunSuite with BeforeAndAfter{
       ds.flatMap {
         x =>
           val ids = x._2._1.slice(1, x._2._1.length).foldLeft(x._2._1.head)((l, r) => for (il <- l; ir <- r) yield Hashing.md5().newHasher().putLong(il).putLong(ir).hash().asLong)
+
           val features = x._2._2.slice(1, x._2._2.length).foldLeft(x._2._2.head)((l, r) => for (il <- l; ir <- r) yield il ++ ir)
           for (i <- ids.indices)
             yield (GRecordKey(ids(i), "chr" + x._1._1, x._1._2, x._1._3, x._1._4.toChar), features(i).map(GDouble(_).asInstanceOf[GValue]))
