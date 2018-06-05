@@ -3,65 +3,9 @@ package de.tub.dima.operators.join
 import com.google.common.hash.Hashing
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.RegionBuilder
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistGreater, DistLess, RegionBuilder}
-import it.polimi.genomics.core.DataTypes.GRECORD
-import it.polimi.genomics.core.GRecordKey
 import org.apache.spark.rdd.RDD
 
-import scala.collection.mutable.ListBuffer
-
 object ArrArrJoin_Multimatrix {
-
-  /**
-    * Transform reference dataset from row-based to array based representation and then binning it.
-    *
-    * @param ref Reference dataset in row-based representation, obtained by reading directly from files.
-    *            Each record in this dataset is of the form (id: Long, chr: Int, start: Long, stop: Long, strand: Short, features: Array[Double])
-    * @param bin bin size
-    * @param less     an Option for DistanceLessThan predicate
-    * @param greater an Option for DistanceGreaterThan predicate
-    * @return
-    */
-  private def transformRef
-  (ref: RDD[(Long, Int, Long, Long, Short, Array[Double])], bin: Int, less: Option[DistLess], greater: Option[DistGreater])
-  : RDD[((Int,Long),(Long,Long,Short,Array[Long],Array[Array[Double]]))] = {
-
-    /*
-    GroupBy records by coordinates (chr, start, stop, strand)
-     */
-    val refCompacted = ref.groupBy(x => (x._2, x._3, x._4, x._5))
-
-
-    /*
-    Binning ref dataset based on join predicate and bin size. There are 3 cases of join predicate:
-    less only, greater only, less than and greater than
-     */
-    (less, greater) match {
-      case (Some(DistLess(lDist)), Some(DistGreater(gDist))) => {
-        null
-      }
-      case (Some(DistLess(lDist)),None) => {
-        refCompacted.flatMap{
-          x =>
-            val startbin = ((x._1._2 - lDist).max(0))/bin
-            val stopbin = (x._1._3 + lDist)/bin
-            val features = x._2.map(_._6).toArray
-            val ids = x._2.map(_._1).toArray
-            /*
-            yield: (chr,binNumber)(start, stop, strand, list_ids, list_features)
-             */
-            for (i <- startbin to stopbin)
-              yield ((x._1._1, i), (x._1._2, x._1._3, x._1._4, ids, features))
-        }
-
-      }
-      case (None, Some(DistGreater(gDist))) => {
-        null
-      }
-      case (None, None) => null
-    }
-
-
-  }
 
   def apply(ref: RDD[((Int, Long, Long, Short), (Array[Array[Long]],Array[Array[Array[Double]]]))],
             exp: RDD[((Int, Long, Long, Short), (Array[Long],Array[Array[Double]]))],
@@ -156,9 +100,6 @@ object ArrArrJoin_Multimatrix {
                     val ids = refRecord._4 :+ expRecord._4
                     val features = refRecord._5 :+ expRecord._5
 
-//                    val ids = (refRecord._4, expRecord._4)
-//                    val features = (refRecord._5, expRecord._5)
-
                     Some((key, (ids, features)))
 
                   }
@@ -175,34 +116,23 @@ object ArrArrJoin_Multimatrix {
       .reduceByKey {
         (l, r) =>
           val lr_ids_lastElement = l._1.last ++ r._1.last
-          l._1(l._1.size-1) = lr_ids_lastElement
+          l._1(l._1.length-1) = lr_ids_lastElement
           val lr_features_lastElement = l._2.last ++ r._2.last
-          l._2(l._2.size-1) = lr_features_lastElement
+          l._2(l._2.length-1) = lr_features_lastElement
 
-          if (l._1.head.size == 1){
+          if (l._1.head.length == 1 && l._1.length > 2){
             val headId = l._1.head.head
             val second = for (id <- l._1(1))
               yield Hashing.md5().newHasher().putLong(headId).putLong(id).hash().asLong
             l._1(1) = second
-            (l._1.slice(1, l._1.size), l._2)
-          }else (l._1, l._2)
+            (l._1.slice(1, l._1.length), l._2)
+          }else
+            (l._1, l._2)
 
 
 
       }
-//      .mapValues {
-//        x =>
-//          val ids = for (refId <- x._1._1;
-//                         expId <- x._1._2
-//          ) yield Hashing.md5().newHasher().putLong(refId).putLong(expId).hash().asLong
-//
-//          val features = for (refFeature <- x._2._1;
-//                              expFeature <- x._2._2)
-//            yield refFeature ++ expFeature
-//          (ids, features)
-//      }
     reduced
-//    null
 
   }
 }
