@@ -5,10 +5,14 @@ import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
-/*
-  @author: dieutth
- */
+/**
+  * @author dieutth, 01/06/2018
+  *
+  * Perform Map operator like MapArrArrNoCartesian version, except using bin number as Int instead of Long
+  * @deprecated as not showing noticeable performance gain
+  */
 
+@deprecated
 object Map_AA_NC_binInt {
 
   def apply(

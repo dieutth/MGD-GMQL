@@ -5,11 +5,13 @@ import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
-/*
-  @author: dieutth
-  Legacy object: using leftOuterJoin is worse than cogroup
- */
-
+/**
+  * @author dieutth, 01/06/2018
+  *
+  * Use leftOuterJoin instead of cogroup to for initial joining between binnedRef and binnedExp of the same (chr, binNumber)
+  * @deprecated as showing worse performance than similar implemenation using cogroup
+  */
+@deprecated
 object MapArrArrNC_leftOuterJoin {
 
   def apply(

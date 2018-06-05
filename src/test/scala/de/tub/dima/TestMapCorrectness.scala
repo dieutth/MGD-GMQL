@@ -77,23 +77,32 @@ class TestMapCorrectness extends TestBase {
     *
     * * REF:
     *
-    * * EXP:
+    * S0, chr1	1	7	*	1	1
+    * S0, chr1	1	3	*	2	2
     *
+    * S1, chr1	1	3	*	1	1
+    * S1, chr1	1	3	*	2	2
+    *
+    * * EXP:
+    * S0, chr1	2	5	*	1	1
+    *
+    * S1, chr1	1	3	*	1	1
+    * S1, chr1	2	4	*	2	2
     */
 
   val expectedResultRegionDupInREF = Array(
-    (GRecordKey(s10, "chr1", 1, 3, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(1))),
-    (GRecordKey(s11, "chr1", 1, 3, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(2))),
-
-    (GRecordKey(s10, "chr1", 1, 3, '*'), Array[GValue](GDouble(2), GDouble(2), GDouble(1))),
-    (GRecordKey(s11, "chr1", 1, 3, '*'), Array[GValue](GDouble(2), GDouble(2), GDouble(2))),
-
-
     (GRecordKey(s00, "chr1", 1, 3, '*'), Array[GValue](GDouble(2), GDouble(2), GDouble(1))),
     (GRecordKey(s01, "chr1", 1, 3, '*'), Array[GValue](GDouble(2), GDouble(2), GDouble(2))),
 
     (GRecordKey(s00, "chr1", 1, 7, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(1))),
-    (GRecordKey(s01, "chr1", 1, 7, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(2)))
+    (GRecordKey(s01, "chr1", 1, 7, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(2))),
+
+    (GRecordKey(s10, "chr1", 1, 3, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(1))),
+    (GRecordKey(s11, "chr1", 1, 3, '*'), Array[GValue](GDouble(1), GDouble(1), GDouble(2))),
+
+    (GRecordKey(s10, "chr1", 1, 3, '*'), Array[GValue](GDouble(2), GDouble(2), GDouble(1))),
+    (GRecordKey(s11, "chr1", 1, 3, '*'), Array[GValue](GDouble(2), GDouble(2), GDouble(2)))
+
   ).map(Rep(_)).toSet
 
   test("Map Arr-Arr-NoCartesian: Region dup in REF only"){
@@ -160,6 +169,7 @@ class TestMapCorrectness extends TestBase {
     val exp = loadDataset(expFilePath_RegionDupInEXP).transformToSingleMatrix()
     val actualResult = Map_ArrArr_Multimatrix(sc, ref, exp, bin).transformToRow().collect().map(Rep(_)).toSet
 
+    actualResult.foreach(println)
     assert(expectedResultRegionDupInEXP.subsetOf(actualResult) && actualResult.subsetOf(expectedResultRegionDupInEXP))
 
   }
@@ -168,9 +178,20 @@ class TestMapCorrectness extends TestBase {
     *
     * ================================================REGION_DUP_IN_BOTH ================================================
     *
-    * REF:
+    * * REF:
+    * S0, chr1	1	3	*	0.2	0.3
+    * S0, chr1	1	3	*	0.2	0.7
     *
-    * EXP:
+    * S1, chr1	1	3	*	0.7	0.2
+    * S1, chr1	2	4	*	0.2	0.2
+    *
+    * * EXP:
+    * S0, chr1	1	3	*	0.2	0.3
+    * S0, chr1	1	3	*	0.2	0.7
+    *
+    * S1, chr1	1	3	*	0.7	0.2
+    * S1, chr1	2	4	*	0.2	0.2
+    *
     */
 
   val expectedResultRegionDupBOTH = Array(
@@ -210,9 +231,16 @@ class TestMapCorrectness extends TestBase {
     *
     * ================================================RECORD-DUP-IN-REF ================================================
     *
-    * REF:
+    ** REF:
+    * S0, chr1	1	3	*	1	1
+    * S0, chr1	1	3	*	1	1
+    * S0, chr1	1	5	*	5	5
     *
-    * EXP:
+    ** EXP:
+    * S0, chr1	50	100	*	100	100
+    *
+    * S1, chr1	1	6	*	6	6
+    * S1, chr1	2	4	*	4	4
     */
 
   val expectedResultRecordDupREF = Array[GRECORD](
