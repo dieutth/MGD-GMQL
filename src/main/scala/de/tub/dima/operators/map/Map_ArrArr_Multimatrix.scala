@@ -1,8 +1,6 @@
 package de.tub.dima.operators.map
 
 import com.google.common.hash.Hashing
-import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistGreater, DistLess, RegionBuilder}
-import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.RegionBuilder
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -73,7 +71,7 @@ object Map_ArrArr_Multimatrix {
                     ) {
 
                       val ids = refRecord._4 :+ expRecord._4
-                      Some((key, (ids, refRecord._5, Array.fill(1)(expRecord._4.size))))
+                      Some((key, (ids, refRecord._5, Array.fill(expRecord._4.size)(1))))
 
                     }
                     else {
@@ -100,15 +98,15 @@ object Map_ArrArr_Multimatrix {
             val expIdsCountRight = r._1.last zip r._3
             val features = l._2
             val (expIds, counts) = (expIdsCountLeft ++ expIdsCountRight groupBy (x => x._1) mapValues (_.map(_._2).sum)).toArray.unzip
-            l._1(l._1.size-1) = expIds
+            l._1(l._1.length-1) = expIds
 
-//            if (l._1.head.size == 1){
-//              val headId = l._1.head.head
-//              val second = for (id <- l._1(1))
-//                yield Hashing.md5().newHasher().putLong(headId).putLong(id).hash().asLong
-//              l._1(1) = second
-//              (l._1.slice(1, l._1.size), l._2, counts)
-//            }else
+            if (l._1.head.length == 1 && l._1.length > 2){
+              val headId = l._1.head.head
+              val second = for (id <- l._1(1))
+                yield Hashing.md5().newHasher().putLong(headId).putLong(id).hash().asLong
+              l._1(1) = second
+              (l._1.slice(1, l._1.length), l._2, counts)
+            }else
               (l._1, l._2, counts)
           }
       }
