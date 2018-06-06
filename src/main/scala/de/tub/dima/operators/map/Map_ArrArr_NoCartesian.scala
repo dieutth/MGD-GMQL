@@ -5,9 +5,17 @@ import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
-/*
-  @author: dieutth
- */
+/**
+  * @author dieutth, 06/06/2018
+  *
+  * Perform Map using single-matrix based representation for both REF and EXP dataset.
+  *
+  * It delays performing a Cartesian product between (refIDs and expIds) and (refFeatures and counts)
+  * until the reduceByKey step.
+  *
+  * The default and only aggregation function is Count.
+  *
+  */
 
 object Map_ArrArr_NoCartesian {
 

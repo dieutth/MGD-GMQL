@@ -5,6 +5,15 @@ import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
+/**
+  * @author dieutth, 06/06/2018
+  *
+  * Perform MAP using multimatrix-based representation for REF and
+  * single-matrix-based representation for EXP dataset.
+  *
+  * The default and only aggregation function is Count.
+  */
+
 object Map_ArrArr_Multimatrix {
   def apply(
             sc: SparkContext,
