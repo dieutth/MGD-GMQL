@@ -5,6 +5,13 @@ import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.Reg
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistGreater, DistLess, RegionBuilder}
 import org.apache.spark.rdd.RDD
 
+/**
+  * @author dieutth, 06/06/2018
+  *
+  * Perform Join using multimatrix-based representation for REF and
+  * single-matrix-based representation for EXP dataset.
+  */
+
 object ArrArrJoin_Multimatrix {
 
   def apply(ref: RDD[((Int, Long, Long, Short), (Array[Array[Long]],Array[Array[Array[Double]]]))],

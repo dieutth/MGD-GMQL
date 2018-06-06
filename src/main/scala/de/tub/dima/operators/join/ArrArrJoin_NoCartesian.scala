@@ -5,59 +5,17 @@ import it.polimi.genomics.core.DataStructures.JoinParametersRD.RegionBuilder.Reg
 import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistGreater, DistLess, RegionBuilder}
 import org.apache.spark.rdd.RDD
 
+/**
+  * @author dieutth, 06/06/2018
+  *
+  * Perform Join using single-matrix based representation for both REF and EXP dataset.
+  *
+  * This version of join is more optimized than the simple ArrArrJoin version, as it delay
+  * performing a Cartesian product between (refIDs and expIds) and (refFeatures and expFeatures)
+  * until the reduceByKey step.
+  *
+  */
 object ArrArrJoin_NoCartesian {
-
-  /**
-    * Transform reference dataset from row-based to array based representation and then binning it.
-    *
-    * @param ref Reference dataset in row-based representation, obtained by reading directly from files.
-    *            Each record in this dataset is of the form (id: Long, chr: Int, start: Long, stop: Long, strand: Short, features: Array[Double])
-    * @param bin bin size
-    * @param less     an Option for DistanceLessThan predicate
-    * @param greater an Option for DistanceGreaterThan predicate
-    * @return
-    */
-  private def transformRef
-  (ref: RDD[(Long, Int, Long, Long, Short, Array[Double])], bin: Int, less: Option[DistLess], greater: Option[DistGreater])
-  : RDD[((Int,Long),(Long,Long,Short,Array[Long],Array[Array[Double]]))] = {
-
-    /*
-    GroupBy records by coordinates (chr, start, stop, strand)
-     */
-    val refCompacted = ref.groupBy(x => (x._2, x._3, x._4, x._5))
-
-
-    /*
-    Binning ref dataset based on join predicate and bin size. There are 3 cases of join predicate:
-    less only, greater only, less than and greater than
-     */
-    (less, greater) match {
-      case (Some(DistLess(lDist)), Some(DistGreater(gDist))) => {
-        null
-      }
-      case (Some(DistLess(lDist)),None) => {
-        refCompacted.flatMap{
-          x =>
-            val startbin = ((x._1._2 - lDist).max(0))/bin
-            val stopbin = (x._1._3 + lDist)/bin
-            val features = x._2.map(_._6).toArray
-            val ids = x._2.map(_._1).toArray
-            /*
-            yield: (chr,binNumber)(start, stop, strand, list_ids, list_features)
-             */
-            for (i <- startbin to stopbin)
-              yield ((x._1._1, i), (x._1._2, x._1._3, x._1._4, ids, features))
-        }
-
-      }
-      case (None, Some(DistGreater(gDist))) => {
-        null
-      }
-      case (None, None) => null
-    }
-
-
-  }
 
   def apply(ref: RDD[((Int, Long, Long, Short), (Array[Long],Array[Array[Double]]))],
             exp: RDD[((Int, Long, Long, Short), (Array[Long],Array[Array[Double]]))],
