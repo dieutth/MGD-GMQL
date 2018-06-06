@@ -21,7 +21,7 @@ import it.polimi.genomics.core.DataTypes._
 import it.polimi.genomics.core.ParsingType._
 import it.polimi.genomics.core._
 import it.polimi.genomics.core.exception.SelectFormatException
-import it.polimi.genomics.profiling.Profilers.Profiler
+//import it.polimi.genomics.profiling.Profilers.Profiler
 import it.polimi.genomics.spark.implementation.MetaOperators.GroupOperator.{MetaGroupMGD, MetaJoinMJD2}
 import it.polimi.genomics.spark.implementation.MetaOperators.SelectMeta._
 import it.polimi.genomics.spark.implementation.MetaOperators._
@@ -141,26 +141,26 @@ class GMQLSparkExecutor(val binSize : BinSize = BinSize(), val maxBinDistance : 
         storeSchema(GMQLSchema.generateSchemaXML(variable.schema,outputFolderName,outputFormat, outputCoordinateSystem),variableDir)
 
         // Compute Profile and store into xml files (one for web, one for optimization)
-        val profile = Profiler.profile(regions = regionRDD, meta = metaRDD, sc = sc)
-
-        try {
-          val output = fs.create(new Path(variableDir + "/files/" + "profile.xml"));
-          val output_web = fs.create(new Path(variableDir + "/files/" + "web_profile.xml"));
-
-          val os = new java.io.BufferedOutputStream(output)
-          val os_web = new java.io.BufferedOutputStream(output_web)
-
-          os.write(Profiler.profileToOptXML(profile).toString().getBytes("UTF-8"))
-          os_web.write(Profiler.profileToWebXML(profile).toString().getBytes("UTF-8"))
-
-          os.close()
-          os_web.close()
-        } catch {
-          case e: Throwable => {
-            logger.error(e.getMessage)
-            e.printStackTrace()
-          }
-        }
+//        val profile = Profiler.profile(regions = regionRDD, meta = metaRDD, sc = sc)
+//
+//        try {
+//          val output = fs.create(new Path(variableDir + "/files/" + "profile.xml"));
+//          val output_web = fs.create(new Path(variableDir + "/files/" + "web_profile.xml"));
+//
+//          val os = new java.io.BufferedOutputStream(output)
+//          val os_web = new java.io.BufferedOutputStream(output_web)
+//
+//          os.write(Profiler.profileToOptXML(profile).toString().getBytes("UTF-8"))
+//          os_web.write(Profiler.profileToWebXML(profile).toString().getBytes("UTF-8"))
+//
+//          os.close()
+//          os_web.close()
+//        } catch {
+//          case e: Throwable => {
+//            logger.error(e.getMessage)
+//            e.printStackTrace()
+//          }
+//        }
 
         fs.deleteOnExit(new Path(RegionOutputPath+"_SUCCESS"))
 
@@ -248,16 +248,16 @@ class GMQLSparkExecutor(val binSize : BinSize = BinSize(), val maxBinDistance : 
                 else SelectRD(this, regionCondition, filteredMeta, inputDataset, sc)
               case _ => SelectRD(this, regionCondition, filteredMeta, inputDataset, sc)
             }
-          case IRPurgeRD(metaDataset: MetaOperator, inputDataset: RegionOperator) => PurgeRD(this, metaDataset, inputDataset, sc)
-          case irCover:IRRegionCover => GenometricCover(this, irCover.cover_flag, irCover.min, irCover.max, irCover.aggregates, irCover.groups, irCover.input_dataset,binSize.Cover, sc)
-          case IRUnionRD(schemaReformatting: List[Int], leftDataset: RegionOperator, rightDataset: RegionOperator) => UnionRD(this, schemaReformatting, leftDataset, rightDataset, sc)
-          case IRMergeRD(dataset: RegionOperator, groups: Option[MetaGroupOperator]) => MergeRD(this, dataset, groups, sc)
-          case IRGroupRD(groupingParameters: Option[List[GroupRDParameters.GroupingParameter]], aggregates: Option[List[RegionAggregate.RegionsToRegion]], regionDataset: RegionOperator) => GroupRD(this, groupingParameters, aggregates, regionDataset, sc)
-          case IROrderRD(ordering: List[(Int, Direction)], topPar: TopParameter, inputDataset: RegionOperator) => OrderRD(this, ordering: List[(Int, Direction)], topPar, inputDataset, sc)
+//          case IRPurgeRD(metaDataset: MetaOperator, inputDataset: RegionOperator) => PurgeRD(this, metaDataset, inputDataset, sc)
+//          case irCover:IRRegionCover => GenometricCover(this, irCover.cover_flag, irCover.min, irCover.max, irCover.aggregates, irCover.groups, irCover.input_dataset,binSize.Cover, sc)
+//          case IRUnionRD(schemaReformatting: List[Int], leftDataset: RegionOperator, rightDataset: RegionOperator) => UnionRD(this, schemaReformatting, leftDataset, rightDataset, sc)
+//          case IRMergeRD(dataset: RegionOperator, groups: Option[MetaGroupOperator]) => MergeRD(this, dataset, groups, sc)
+//          case IRGroupRD(groupingParameters: Option[List[GroupRDParameters.GroupingParameter]], aggregates: Option[List[RegionAggregate.RegionsToRegion]], regionDataset: RegionOperator) => GroupRD(this, groupingParameters, aggregates, regionDataset, sc)
+//          case IROrderRD(ordering: List[(Int, Direction)], topPar: TopParameter, inputDataset: RegionOperator) => OrderRD(this, ordering: List[(Int, Direction)], topPar, inputDataset, sc)
           case irJoin:IRGenometricJoin => GenometricJoin4TopMin3(this, irJoin.metajoin_condition, irJoin.join_condition, irJoin.region_builder, irJoin.left_dataset, irJoin.right_dataset,irJoin.join_on_attributes,binSize.Join,maxBinDistance, sc)
           case irMap:IRGenometricMap => GenometricMap71(this, irMap.grouping, irMap.aggregates, irMap.reference, irMap.samples,binSize.Map,REF_PARALLILISM, sc)
-          case IRDifferenceRD(metaJoin: OptionalMetaJoinOperator, leftDataset: RegionOperator, rightDataset: RegionOperator,exact:Boolean) => GenometricDifference(this, metaJoin, leftDataset, rightDataset,exact, sc)
-          case IRProjectRD(projectedValues: Option[List[Int]], tupleAggregator: Option[List[RegionExtension]], inputDataset: RegionOperator, inputDatasetMeta: MetaOperator) => ProjectRD(this, projectedValues, tupleAggregator, inputDataset,inputDatasetMeta, sc)
+//          case IRDifferenceRD(metaJoin: OptionalMetaJoinOperator, leftDataset: RegionOperator, rightDataset: RegionOperator,exact:Boolean) => GenometricDifference(this, metaJoin, leftDataset, rightDataset,exact, sc)
+//          case IRProjectRD(projectedValues: Option[List[Int]], tupleAggregator: Option[List[RegionExtension]], inputDataset: RegionOperator, inputDatasetMeta: MetaOperator) => ProjectRD(this, projectedValues, tupleAggregator, inputDataset,inputDatasetMeta, sc)
 
         }
       ro.intermediateResult = Some(res)
