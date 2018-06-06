@@ -1,7 +1,7 @@
 package de.tub.dima
 
 import com.google.common.hash.Hashing
-import de.tub.dima.loaders.{CustomParser, Loaders}
+import it.polimi.genomics.spark.implementation.loaders.{CustomParser, Loaders}
 import it.polimi.genomics.core.DataTypes.GRECORD
 import it.polimi.genomics.core.{GDouble, GRecordKey, GValue}
 import org.apache.spark.rdd.RDD
