@@ -67,7 +67,7 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     var join = ds1.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, ds2)
 
     for (i <- Range(1, loop))
-      join = ds2.JOIN(None, List(new JoinQuadruple(Some(DistLess(70000)))), RegionBuilder.LEFT, join)
+      join = ds2.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, join)
 
     server setOutputPath(outputPath) MATERIALIZE(join)
     server.run()
