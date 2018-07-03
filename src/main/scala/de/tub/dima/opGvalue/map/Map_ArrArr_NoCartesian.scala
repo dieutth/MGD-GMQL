@@ -76,7 +76,7 @@ object Map_ArrArr_NoCartesian {
                     //region intersect
                       (refRecord._1 < expRecord._2 && expRecord._1 < refRecord._2)
                         //strand equal or at least one of the strand is non-determine
-                        && (refRecord._3.equals('*') || expRecord._3.equals('*') || refRecord._3.equals(expRecord._3))
+                        && (refRecord._3 == '*' || expRecord._3 == '*' || refRecord._3 == expRecord._3)
                         //produce result only when bin contains the start of either REF region or EXP region
                         && (x._1._2 == refRecord._1 / bin || x._1._2 == expRecord._1 / bin)
                     ) {

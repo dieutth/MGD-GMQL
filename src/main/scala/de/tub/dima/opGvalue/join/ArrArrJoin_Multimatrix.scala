@@ -92,7 +92,7 @@ object ArrArrJoin_Multimatrix {
                   //region overlap
                     (refL < expRecord._2 && expRecord._1 < refR)
                       //strand equal or at least one of the strand is non-determine
-                      &&  (refRecord._3.equals('*') || expRecord._3.equals('*') || refRecord._3.equals(expRecord._3))
+                      &&  (refRecord._3 == '*' || expRecord._3 == '*' || refRecord._3 == expRecord._3)
                       && (x._1._2 == refL/binSize || x._1._2 == expRecord._1/binSize)
                   ){
 

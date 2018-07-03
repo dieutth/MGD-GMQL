@@ -76,7 +76,7 @@ object Map_ArrArr_Multimatrix {
                     //region overlap
                       (refRecord._1 < expRecord._2 && expRecord._1 < refRecord._2)
                         //strand equal or at least one of the strand is non-determine
-                        && (refRecord._3.equals('*') || expRecord._3.equals('*') || refRecord._3.equals(expRecord._3))
+                        && (refRecord._3 == '*' || expRecord._3 == '*' || refRecord._3 == expRecord._3)
                         && (x._1._2 == refRecord._1 / binSize || x._1._2 == expRecord._1 / binSize)
                     ) {
 
