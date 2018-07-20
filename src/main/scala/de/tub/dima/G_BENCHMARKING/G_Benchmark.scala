@@ -8,6 +8,7 @@ import it.polimi.genomics.core.DataStructures.JoinParametersRD.{DistLess, JoinQu
 import it.polimi.genomics.core.DataTypes.GRECORD
 import it.polimi.genomics.core._
 import it.polimi.genomics.spark.implementation.GMQLSparkExecutor
+import it.polimi.genomics.spark.implementation.RegionsOperators.SelectRegions.StoreMEMRD
 import it.polimi.genomics.spark.implementation.loaders.{CustomParser, Loaders}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -17,8 +18,10 @@ import org.apache.spark.{SparkConf, SparkContext}
   */
 
 object G_Benchmark{
-    def apply(conf: SparkConf, refFilePath: String, expFilePath: String,
+  def apply(conf: SparkConf, refFilePath: String, expFilePath: String,
               outputPath: String) = new G_Benchmark(conf, refFilePath, expFilePath, outputPath)
+
+  def apply(conf: SparkConf, outputPath: String): G_Benchmark = new G_Benchmark(conf, "", "", outputPath)
 }
 
 
@@ -38,7 +41,9 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
   def benchmarkCurrentSystem_Map(loop: Int): Unit = {
     conf.setAppName("Current System Map")
     sc = new SparkContext(conf)
-    server = new GmqlServer(new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB))
+    val executor = new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB)
+    server = new GmqlServer(executor)
+
     val startTime = System.currentTimeMillis()
     val ds1 = server READ(refFilePath ) USING (new CustomParser().setSchema(refFilePath))
     val ds2 = server READ(expFilePath ) USING (new CustomParser().setSchema(expFilePath))
@@ -46,8 +51,12 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     var map = ds1.MAP(None,List(),ds2)
     for (i <- Range(1, loop))
       map = map.MAP(None,List(),ds1)
-    server setOutputPath(outputPath) MATERIALIZE(map)
-    server.run()
+
+    val rdd = StoreMEMRD(executor, "", map.regionDag, map.metaDag, map.schema, sc)
+    val count = rdd.count()
+    println("Count = " + count)
+//    server setOutputPath(outputPath) MATERIALIZE(map)
+//    server.run()
     println ("Execution time of current system map: " + (System.currentTimeMillis() - startTime)/1000 + " loop = " + loop)
 
   }
@@ -59,7 +68,8 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
   def benchmarkCurrentSystem_Join(loop: Int): Unit = {
     conf.setAppName("Current System Join")
     sc = new SparkContext(conf)
-    server = new GmqlServer(new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB))
+    val executor = new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB)
+    server = new GmqlServer(executor)
     val startTime = System.currentTimeMillis()
     val ds1 = server READ(refFilePath ) USING (new CustomParser().setSchema(refFilePath))
     val ds2 = server READ(expFilePath ) USING (new CustomParser().setSchema(expFilePath))
@@ -69,8 +79,12 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     for (i <- Range(1, loop))
       join = ds2.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, join)
 
-    server setOutputPath(outputPath) MATERIALIZE(join)
-    server.run()
+    val rdd = StoreMEMRD(executor, "", join.regionDag, join.metaDag, join.schema, sc)
+    val count = rdd.count()
+    println("Count = " + count)
+
+//    server setOutputPath(outputPath) MATERIALIZE(join)
+//    server.run()
     println ("Execution time of current system join: ",(System.currentTimeMillis() - startTime)/1000)
 
   }
@@ -90,7 +104,9 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     for (i <- Range(1, loop))
       join = ArrArrJoin(join, ref, bin, RegionBuilder.LEFT, distLess, distGreater)
 
-    join.transformToRow().saveAsTextFile(outputPath)
+//    join.transformToRow().saveAsTextFile(outputPath)
+    val count = join.transformToRow().count()
+    println("Count = " + count)
     println("Execution time for normal join: " + (System.currentTimeMillis() - startTime) / 1000)
 
   }
@@ -111,7 +127,9 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     for (i <- Range(1, loop))
       join = ArrArrJoin_NoCartesian(join, exp, bin, RegionBuilder.LEFT, distLess, distGreater)
 
-    join.transformToRow().saveAsTextFile(outputPath)
+    val count = join.transformToRow().count()
+    println("Count = " + count)
+//    join.transformToRow().saveAsTextFile(outputPath)
     println("Execution time for join NoCartesian: " + (System.currentTimeMillis() - startTime) / 1000)
 
   }
@@ -134,7 +152,9 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     for (i <- Range(1, loop))
       join = ArrArrJoin_Multimatrix(join, exp, bin, RegionBuilder.LEFT, distLess, distGreater)
 
-    join.transformToRow().saveAsTextFile(outputPath)
+    val count = join.transformToRow().count()
+    println("Count = " + count)
+//    join.transformToRow().saveAsTextFile(outputPath)
     println("Execution time for join Multimatrix: " + (System.currentTimeMillis() - startTime) / 1000)
 
   }
@@ -156,7 +176,9 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     for (i <- Range(1, loop))
       map = Map_ArrArr_NoCartesian(sc, map, exp, bin)
 
-    map.transformToRow().saveAsTextFile(outputPath)
+    val count = map.transformToRow().count()
+    println("Count = " + count)
+//    map.transformToRow().saveAsTextFile(outputPath)
     println("Execution time for Map NoCartesian: " + (System.currentTimeMillis() - startTime) / 1000)
 
   }
@@ -179,10 +201,271 @@ class G_Benchmark(conf: SparkConf, refFilePath: String, expFilePath: String, out
     for (i <- Range(1, loop))
       map = Map_ArrArr_Multimatrix(sc, map, exp, bin)
 
-    map.transformToRow().saveAsTextFile(outputPath)
+    val count = map.transformToRow().count()
+    println("Count = " + count)
+//    map.transformToRow().saveAsTextFile(outputPath)
     println("Execution time for Map MultiMatrix: " + (System.currentTimeMillis() - startTime) / 1000)
   }
 
+
+  def benchmarkCurrentSystemMapMap(third: String): Unit = {
+    conf.setAppName("Current System A MAP (B MAP C) ")
+    sc = new SparkContext(conf)
+    val executor = new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB)
+    server = new GmqlServer(executor)
+
+    val ds1 = server READ(refFilePath ) USING (new CustomParser().setSchema(refFilePath))
+    val ds2 = server READ(expFilePath ) USING (new CustomParser().setSchema(expFilePath))
+    val ds3 = server READ(third ) USING (new CustomParser().setSchema(third))
+
+    val map = ds1 MAP (None, List(), ds2 MAP(None, List(), ds3))
+    val rdd = StoreMEMRD(executor, "", map.regionDag, map.metaDag, map.schema, sc)
+    val count = rdd.count()
+    println("Count = " + count)
+//    server setOutputPath(outputPath) MATERIALIZE(map)
+//    server.run()
+  }
+
+
+  def benchmarkMapMap_MM(third: String): Unit = {
+    conf.setAppName("ArrArr A MAP (B MAP C)  MM-NC")
+    sc = new SparkContext(conf)
+
+    val ref = loadDataset(refFilePath).transformToMultiMatrix()
+    val exp = loadDataset(expFilePath).transformToSingleMatrix()
+    val ds3 = loadDataset(third).transformToSingleMatrix()
+
+    var map1 = Map_ArrArr_NoCartesian(sc, exp, ds3, bin)
+    val map = Map_ArrArr_Multimatrix(sc, ref, map1, bin)
+    val count = map.transformToRow().count()
+    println("Count = " + count)
+//    map.transformToRow().saveAsTextFile(outputPath)
+
+
+  }
+
+  def benchmarkMapMap_NC(third: String): Unit = {
+    conf.setAppName("ArrArr A MAP (B MAP C) NC-NC")
+    sc = new SparkContext(conf)
+    val ref = loadDataset(refFilePath).transformToSingleMatrix()
+    val exp = loadDataset(expFilePath).transformToSingleMatrix()
+    val ds3 = loadDataset(third).transformToSingleMatrix()
+
+    val tmp = Map_ArrArr_NoCartesian(sc, exp, ds3, bin)
+    var map = Map_ArrArr_NoCartesian(sc, ref, tmp, bin)
+    val count = map.transformToRow().count()
+    println("Count = " + count)
+//    map.transformToRow().saveAsTextFile(outputPath)
+
+  }
+
+  /**
+    * Complex query 1 =
+    * SELECT ((DS1 MAP DS2) LEFT_JOIN DS3)
+    * @param datasets
+    */
+  def benchmarkCurrentSystem_ComplexQuery_2(datasets: String*): Unit = {
+    conf.setAppName("Current System - Complex 2")
+    sc = new SparkContext(conf)
+    val executor = new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB)
+    server = new GmqlServer(executor)
+
+    val ds1 = server READ(datasets(0) ) USING new CustomParser().setSchema(datasets(0))
+    val ds2 = server READ(datasets(1) ) USING (new CustomParser().setSchema(datasets(1)))
+    val ds3 = server READ(datasets(2) ) USING (new CustomParser().setSchema(datasets(2)))
+
+    val ds12 = ds1.MAP(None, List(), ds2)
+    val result = ds12.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, ds3)
+    val rdd = StoreMEMRD(executor, "", result.regionDag, result.metaDag, result.schema, sc)
+    val count = rdd.count()
+    println("Count = " + count)
+//    server setOutputPath(outputPath) MATERIALIZE(result)
+//    server.run()
+
+  }
+
+  /**
+    * (DS1 MAP DS2) JOIN DS3 MAP DS4
+    * @param datasets
+    */
+  def benchmarkCurrentSystem_ComplexQuery_3(datasets: String*): Unit = {
+    conf.setAppName("Current System - Complex 3")
+    sc = new SparkContext(conf)
+    val executor = new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB)
+    server = new GmqlServer(executor)
+
+    val ds1 = server READ(datasets(0) ) USING new CustomParser().setSchema(datasets(0))
+    val ds2 = server READ(datasets(1) ) USING (new CustomParser().setSchema(datasets(1)))
+    val ds3 = server READ(datasets(2) ) USING (new CustomParser().setSchema(datasets(2)))
+    val ds4 = server READ(datasets(3) ) USING (new CustomParser().setSchema(datasets(3)))
+
+    val ds12 = ds1.MAP(None, List(), ds2)
+    val ds123 = ds12.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, ds3)
+    val result = ds123.MAP(None, List(), ds4)
+
+    val rdd = StoreMEMRD(executor, "", result.regionDag, result.metaDag, result.schema, sc)
+    val count = rdd.count()
+    println("Count = " + count)
+
+//    server setOutputPath(outputPath) MATERIALIZE(result)
+//    server.run()
+
+  }
+
+
+  /**
+    * Complex query_4 = (DS1 MAP DS2) JOIN (DS3 MAP DS4) JOIN (DS5 MAP DS6)
+    * @param datasets
+    */
+  def benchmarkCurrentSystem_ComplexQueries_4(datasets: String*): Unit = {
+    conf.setAppName("Current System Complex Query 4")
+    sc = new SparkContext(conf)
+    val executor = new GMQLSparkExecutor(sc=sc, binSize = bS, outputFormat = GMQLSchemaFormat.TAB)
+    server = new GmqlServer(executor)
+
+
+    val ds1 = server READ(datasets(0) ) USING new CustomParser().setSchema(datasets(0))
+    val ds2 = server READ(datasets(1) ) USING (new CustomParser().setSchema(datasets(1)))
+    val ds3 = server READ(datasets(2) ) USING (new CustomParser().setSchema(datasets(2)))
+    val ds4 = server READ(datasets(3) ) USING (new CustomParser().setSchema(datasets(3)))
+    val ds5 = server READ(datasets(4) ) USING (new CustomParser().setSchema(datasets(4)))
+    val ds6 = server READ(datasets(5) ) USING (new CustomParser().setSchema(datasets(5)))
+
+
+    val ds12 = ds1.MAP(None, List(), ds2)
+    val ds34 = ds3.MAP(None, List(), ds4)
+    val ds56 = ds5.MAP(None, List(), ds6)
+
+    val ds1234 = ds12.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, ds34)
+    val result = ds1234.JOIN(None, List(new JoinQuadruple(distLess)), RegionBuilder.LEFT, ds56)
+
+    val rdd = StoreMEMRD(executor, "", result.regionDag, result.metaDag, result.schema, sc)
+    val count = rdd.count()
+    println("Count = " + count)
+
+//    server setOutputPath(outputPath) MATERIALIZE(result)
+//    server.run()
+
+  }
+
+
+
+  def benchmark_Single_Complex_2(datasets: String*): Unit = {
+    conf.setAppName("Single - Complex 2")
+    sc = new SparkContext(conf)
+
+    val ds1 = loadDataset(datasets(0)).transformToSingleMatrix()
+    val ds2 = loadDataset(datasets(1)).transformToSingleMatrix()
+    val ds3 = loadDataset(datasets(2)).transformToSingleMatrix()
+    val ds12 = Map_ArrArr_NoCartesian(sc, ds1, ds2, bin)
+    val result = ArrArrJoin_NoCartesian(ds12, ds3, bin, RegionBuilder.LEFT, distLess, distGreater)
+
+//    result.transformToRow().saveAsTextFile(outputPath)
+    val count = result.transformToRow().count()
+    println("Count = " + count)
+  }
+
+  def benchmark_Multi_Complex_2(datasets: String*): Unit = {
+    conf.setAppName("Multi - Complex 2")
+    sc = new SparkContext(conf)
+
+    val ds1 = loadDataset(datasets(0)).transformToMultiMatrix()
+    val ds2 = loadDataset(datasets(1)).transformToSingleMatrix()
+    val ds3 = loadDataset(datasets(2)).transformToSingleMatrix()
+
+    val ds12 = Map_ArrArr_Multimatrix(sc, ds1, ds2, bin)
+    val result = ArrArrJoin_Multimatrix(ds12, ds3, bin, RegionBuilder.LEFT, distLess, distGreater)
+
+//    result.transformToRow().saveAsTextFile(outputPath)
+    val count = result.transformToRow().count()
+    println("Count = " + count)
+  }
+
+
+  def benchmark_Single_Complex_3(datasets: String*): Unit = {
+    conf.setAppName("Single - Complex 3")
+    sc = new SparkContext(conf)
+
+    val ds1 = loadDataset(datasets(0)).transformToSingleMatrix()
+    val ds2 = loadDataset(datasets(1)).transformToSingleMatrix()
+    val ds3 = loadDataset(datasets(2)).transformToSingleMatrix()
+    val ds4 = loadDataset(datasets(3)).transformToSingleMatrix()
+
+    val ds12 = Map_ArrArr_NoCartesian(sc, ds1, ds2, bin)
+    val ds123 =  ArrArrJoin_NoCartesian(ds12, ds3, bin, RegionBuilder.LEFT, distLess, distGreater)
+    val result = Map_ArrArr_NoCartesian(sc, ds123, ds4, bin)
+
+//    result.transformToRow().saveAsTextFile(outputPath)
+    val count = result.transformToRow().count()
+    println("Count = " + count)
+  }
+
+  def benchmark_Multi_Complex_3(datasets: String*): Unit = {
+    conf.setAppName("Multi - Complex 3")
+    sc = new SparkContext(conf)
+
+    val ds1 = loadDataset(datasets(0)).transformToMultiMatrix()
+    val ds2 = loadDataset(datasets(1)).transformToSingleMatrix()
+    val ds3 = loadDataset(datasets(2)).transformToSingleMatrix()
+    val ds4 = loadDataset(datasets(3)).transformToSingleMatrix()
+
+    val ds12 = Map_ArrArr_Multimatrix(sc, ds1, ds2, bin)
+    val ds123 = ArrArrJoin_Multimatrix(ds12, ds3, bin, RegionBuilder.LEFT, distLess, distGreater)
+    val result = Map_ArrArr_Multimatrix(sc, ds123, ds4, bin)
+
+//    result.transformToRow().saveAsTextFile(outputPath)
+    val count = result.transformToRow().count()
+    println("Count = " + count)
+  }
+
+
+  def benchmark_Single_Complex_4(datasets: String*): Unit = {
+    conf.setAppName("Single - Complex 4")
+    sc = new SparkContext(conf)
+
+    val ds1 = loadDataset(datasets(0)).transformToSingleMatrix()
+    val ds2 = loadDataset(datasets(1)).transformToSingleMatrix()
+    val ds3 = loadDataset(datasets(2)).transformToSingleMatrix()
+    val ds4 = loadDataset(datasets(3)).transformToSingleMatrix()
+    val ds5 = loadDataset(datasets(4)).transformToSingleMatrix()
+    val ds6 = loadDataset(datasets(5)).transformToSingleMatrix()
+
+    val ds12 = Map_ArrArr_NoCartesian(sc, ds1, ds2, bin)
+    val ds34 = Map_ArrArr_NoCartesian(sc, ds3, ds4, bin)
+    val ds56 = Map_ArrArr_NoCartesian(sc, ds5, ds6, bin)
+
+    
+    val ds1234 =  ArrArrJoin_NoCartesian(ds12, ds34, bin, RegionBuilder.LEFT, distLess, distGreater)
+    val result = ArrArrJoin_NoCartesian(ds1234, ds56, bin, RegionBuilder.LEFT, distLess, distGreater)
+
+//    result.transformToRow().saveAsTextFile(outputPath)
+    val count = result.transformToRow().count()
+    println("Count = " + count)
+  }
+
+  def benchmark_Multi_Complex_4(datasets: String*): Unit = {
+    conf.setAppName("Multi - Complex 4")
+    sc = new SparkContext(conf)
+
+    val ds1 = loadDataset(datasets(0)).transformToMultiMatrix()
+    val ds2 = loadDataset(datasets(1)).transformToSingleMatrix()
+    val ds3 = loadDataset(datasets(2)).transformToSingleMatrix()
+    val ds4 = loadDataset(datasets(3)).transformToSingleMatrix()
+    val ds5 = loadDataset(datasets(4)).transformToSingleMatrix()
+    val ds6 = loadDataset(datasets(5)).transformToSingleMatrix()
+
+    val ds12 = Map_ArrArr_Multimatrix(sc, ds1, ds2, bin)
+    val ds34 = Map_ArrArr_NoCartesian(sc, ds3, ds4, bin)
+    val ds56 = Map_ArrArr_NoCartesian(sc, ds5, ds6, bin)
+
+    val ds1234 = ArrArrJoin_Multimatrix(ds12, ds34, bin, RegionBuilder.LEFT, distLess, distGreater)
+    val result =  ArrArrJoin_Multimatrix(ds1234, ds56, bin, RegionBuilder.LEFT, distLess, distGreater)
+
+//    result.transformToRow().saveAsTextFile(outputPath)
+    val count = result.transformToRow().count()
+    println("Count = " + count)
+
+  }
 
 
 

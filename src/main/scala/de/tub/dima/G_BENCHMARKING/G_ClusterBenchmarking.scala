@@ -13,7 +13,7 @@ import org.apache.spark.SparkConf
   *     Other configuration should be made when submitting the job (fat jar) to spark
   *     In particular, value of setMaster and spark.default.parallelism need to be provided
   *
-  *   - value of method (to benchmark), refPath, expPath, outputPath, loop are obtained via list of arguments of main
+  *   - value of method (to benchmark), refPath, expPath, "", loop are obtained via list of arguments of main
   *
   */
 
@@ -31,39 +31,125 @@ object G_ClusterBenchmarking {
       .set("spark.eventLog.enabled", "true")
       .set("spark.eventLog.dir","/tmp/spark-events")
 
-    if (args.length != 5){
-      println(
-        """Provide 5 arguments to execute!
-          |args(0): method to benchmark. Possible values = (current_map, current_join, arrarr_join, arrarr_join_nc, arrarr_join_mm, arrarr_map_nc, arrarr_map_mm)
-          |args(1): refPath. Absolute path to ref dataset
-          |args(2): expPath. Absolute path to exp dataset
-          |args(3): outputPath. Absolute path to write output dataset to.
-          |args(4): loop. An integer represents number of loop
-          |An example of correct arguments list:
-          |current_map /home/dieutth/gmqldata/tmp/ref/ /home/dieutth/gmqldata/tmp/exp/ /home/dieutth/result/current_map/ 1
-        """.stripMargin)
 
-    }else{
-      val List(method, refPath, expPath, outputPath, loop) = args.toList
-      
-      method.toLowerCase() match{
-        case "current_map" => 
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkCurrentSystem_Map(loop.toInt)
-        case "current_join" => 
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkCurrentSystem_Join(loop.toInt)
-        case "arrarr_join" => 
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkArrArrJoin(loop.toInt)
-        case "arrarr_join_nc"=>
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkArrArrJoinNoCartesian(loop.toInt)
-        case "arrarr_join_mm" => 
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkArrArrJoinMultimatrix(loop.toInt)
-        case "arrarr_map_nc" =>
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkArrArrMapNoCartesian(loop.toInt)
-        case "arrarr_map_mm" =>
-              G_Benchmark(conf, refPath, expPath, outputPath).benchmarkArrArrMapMultimatrix(loop.toInt)
-      }
-      
+    if (args.isEmpty) {
+      println(
+        """Provide arguments to execute!""".stripMargin)
     }
+    else{
+      
+      val query = args(0)
+                  
+      query.toLowerCase() match{
+        case "current_map" =>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkCurrentSystem_Map(1)
+          
+        case "current_join" =>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkCurrentSystem_Join(1)
+          
+        case "arrarr_join" =>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrJoin(1)
+          
+        case "arrarr_join_nc"=>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrJoinNoCartesian(1)
+          
+        case "arrarr_join_mm" =>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrJoinMultimatrix(1)
+          
+        case "arrarr_map_nc" =>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrMapNoCartesian(1)
+          
+        case "arrarr_map_mm" =>
+              val List(refPath, expPath) = args.toList.tail
+              G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrMapMultimatrix(1)
+
+          
+          //*****************************************************************************************
+          //*************************************COMPLEX QUERIES*************************************
+          //*****************************************************************************************
+
+        case "current-complex-map" =>
+          val List(refPath, expPath, loop) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkCurrentSystem_Map(loop.toInt)
+
+        case "current-complex-join" =>
+          val List(refPath, expPath, loop) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkCurrentSystem_Join(loop.toInt)
+
+       
+        case "single-complex-join"=>
+          val List(refPath, expPath, loop) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrJoinNoCartesian(loop.toInt)
+
+        case "multi-complex-join" =>
+          val List(refPath, expPath, loop) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrJoinMultimatrix(loop.toInt)
+
+        case "single-complex-map" =>
+          val List(refPath, expPath, loop) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrMapNoCartesian(loop.toInt)
+
+        case "multi-complex-map" =>
+          val List(refPath, expPath, loop) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkArrArrMapMultimatrix(loop.toInt)
+
+
+        case "complex-1-current" =>
+          val List(refPath, expPath, third) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkCurrentSystemMapMap(third)
+
+        case "complex-2-current" =>
+          val List(ds1, ds2, ds3) = args.toList.tail
+          G_Benchmark(conf, "").benchmarkCurrentSystem_ComplexQuery_2(ds1, ds2, ds3)
+
+        case "complex-3-current" =>
+          val List(ds1, ds2, ds3, ds4) = args.toList.tail
+          G_Benchmark(conf, "").benchmarkCurrentSystem_ComplexQuery_3(ds1, ds2, ds3, ds4)
+        case "complex-4-current" =>
+          val List(ds1, ds2, ds3, ds4, ds5, ds6) = args.toList.tail
+          G_Benchmark(conf, "").benchmarkCurrentSystem_ComplexQueries_4(ds1, ds2, ds3, ds4, ds5, ds6)
+
+        case "complex-1-single" =>
+          val List(refPath, expPath, third) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkMapMap_NC(third)
+
+        case "complex-2-single" =>
+          val List(ds1, ds2, ds3) = args.toList.tail
+          G_Benchmark(conf, "").benchmark_Single_Complex_2(ds1, ds2, ds3)
+
+        case "complex-3-single" =>
+          val List(ds1, ds2, ds3, ds4) = args.toList.tail
+          G_Benchmark(conf, "").benchmark_Single_Complex_3(ds1, ds2, ds3, ds4)
+
+        case "complex-4-single" =>
+          val List(ds1, ds2, ds3, ds4, ds5, ds6) = args.toList.tail
+          G_Benchmark(conf, "").benchmark_Single_Complex_4(ds1, ds2, ds3, ds4, ds5, ds6)
+
+        case "complex-1-multi" =>
+          val List(refPath, expPath, third) = args.toList.tail
+          G_Benchmark(conf, refPath, expPath, "").benchmarkMapMap_MM(third)
+
+        case "complex-2-multi" =>
+          val List(ds1, ds2, ds3) = args.toList.tail
+          G_Benchmark(conf, "").benchmark_Multi_Complex_2(ds1, ds2, ds3)
+
+        case "complex-3-multi" =>
+          val List(ds1, ds2, ds3, ds4) = args.toList.tail
+          G_Benchmark(conf, "").benchmark_Multi_Complex_3(ds1, ds2, ds3, ds4)
+
+        case "complex-4-multi" =>
+          val List(ds1, ds2, ds3, ds4, ds5, ds6) = args.toList.tail
+          G_Benchmark(conf, "").benchmark_Multi_Complex_4(ds1, ds2, ds3, ds4, ds5, ds6)
+      }
+
+    }
+
   }
 
 }
